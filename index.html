@@ -76,31 +76,54 @@
 
     const API_BASE = "https://football-quant-lab.onrender.com";
 
-    async function populateTeams() {
+    async function populateTeams(retries = 5) {
 
-        try {
-            const response = await fetch(API_BASE + "/teams");
-            const data = await response.json();
+    const loadingDiv = document.getElementById("loading");
+    loadingDiv.innerText = "Caricamento squadre...";
 
-            const homeSelect = document.getElementById("homeTeam");
-            const awaySelect = document.getElementById("awayTeam");
+    try {
 
-            homeSelect.innerHTML = "";
-            awaySelect.innerHTML = "";
+        const response = await fetch(API_BASE + "/teams");
 
-            data.teams.forEach(team => {
-                let option1 = new Option(team, team);
-                let option2 = new Option(team, team);
-                homeSelect.add(option1);
-                awaySelect.add(option2);
-            });
+        if (!response.ok) {
+            throw new Error("Server non pronto");
+        }
 
-        } catch (error) {
-            document.getElementById("loading").innerText =
-                "Errore nel caricamento squadre. Riprova.";
-            console.error(error);
+        const data = await response.json();
+
+        const homeSelect = document.getElementById("homeTeam");
+        const awaySelect = document.getElementById("awayTeam");
+
+        homeSelect.innerHTML = "";
+        awaySelect.innerHTML = "";
+
+        data.teams.forEach(team => {
+            let option1 = new Option(team, team);
+            let option2 = new Option(team, team);
+            homeSelect.add(option1);
+            awaySelect.add(option2);
+        });
+
+        loadingDiv.innerText = "";
+
+    } catch (error) {
+
+        if (retries > 0) {
+
+            loadingDiv.innerText =
+                "Server in riattivazione... attendo qualche secondo";
+
+            setTimeout(() => {
+                populateTeams(retries - 1);
+            }, 4000);
+
+        } else {
+
+            loadingDiv.innerText =
+                "Impossibile connettersi al server. Ricarica la pagina.";
         }
     }
+}
 
     async function predict() {
 
