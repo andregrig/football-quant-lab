@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Football Quant Lab</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0f172a;
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+
+        h1 {
+            font-size: 32px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+        }
+
+        select, button {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 8px;
+            border: none;
+            width: 220px;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
+
+        .card {
+            background-color: #1e293b;
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .loading {
+            margin-top: 20px;
+            font-style: italic;
+            color: #94a3b8;
+        }
+
+        .big-number {
+            font-size: 22px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Football Quant Lab</h1>
+    <p>Advanced Probabilistic Match Analysis</p>
+
+    <select id="homeTeam"></select>
+    <select id="awayTeam"></select>
+    <br>
+    <button onclick="predict()">Calcola</button>
+
+    <div id="loading" class="loading"></div>
+    <div id="results"></div>
+
+</div>
+
+<script>
+
+    async function populateTeams() {
+
+        const response = await fetch("http://127.0.0.1:8000/teams");
+        const data = await response.json();
+
+        const homeSelect = document.getElementById("homeTeam");
+        const awaySelect = document.getElementById("awayTeam");
+
+        homeSelect.innerHTML = "";
+        awaySelect.innerHTML = "";
+
+        data.teams.forEach(team => {
+            let option1 = new Option(team, team);
+            let option2 = new Option(team, team);
+            homeSelect.add(option1);
+            awaySelect.add(option2);
+        });
+    }
+
+    async function predict() {
+
+        const home = document.getElementById("homeTeam").value;
+        const away = document.getElementById("awayTeam").value;
+
+        if (home === away) {
+            alert("Le squadre devono essere diverse");
+            return;
+        }
+
+        document.getElementById("loading").innerText = "Calcolo in corso...";
+        document.getElementById("results").innerHTML = "";
+
+        const response = await fetch("http://127.0.0.1:8000/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                home_team: home,
+                away_team: away
+            })
+        });
+
+        const data = await response.json();
+
+        document.getElementById("loading").innerText = "";
+
+        if (data.error) {
+            document.getElementById("results").innerHTML =
+                "<div class='card'>" + data.error + "</div>";
+            return;
+        }
+
+        document.getElementById("results").innerHTML = `
+            <div class="card">
+                <h2>Probabilità 1X2</h2>
+                <p>Home Win: <span class="big-number">${data.home_win}%</span></p>
+                <p>Draw: <span class="big-number">${data.draw}%</span></p>
+                <p>Away Win: <span class="big-number">${data.away_win}%</span></p>
+            </div>
+
+            <div class="card">
+                <h2>Over / Under 2.5</h2>
+                <p>Over 2.5: <span class="big-number">${data.over_2_5}%</span></p>
+                <p>Under 2.5: <span class="big-number">${data.under_2_5}%</span></p>
+            </div>
+
+            <div class="card">
+                <h2>Expected Goals</h2>
+                <p>λ Home: <span class="big-number">${data.lambda_home}</span></p>
+                <p>λ Away: <span class="big-number">${data.lambda_away}</span></p>
+            </div>
+
+            <div class="card">
+                <h2>Top 5 Risultati Esatti</h2>
+                ${data.top_scores.map(s => 
+                    `<p>${s.score} → <span class="big-number">${s.probability}%</span></p>`
+                ).join("")}
+            </div>
+        `;
+    }
+
+    populateTeams();
+
+</script>
+
+</body>
+</html>
