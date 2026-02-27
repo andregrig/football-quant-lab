@@ -74,23 +74,32 @@
 
 <script>
 
+    const API_BASE = "https://football-quant-lab.onrender.com";
+
     async function populateTeams() {
 
-        const response = await fetch("https://football-quant-lab.onrender.com");
-        const data = await response.json();
+        try {
+            const response = await fetch(API_BASE + "/teams");
+            const data = await response.json();
 
-        const homeSelect = document.getElementById("homeTeam");
-        const awaySelect = document.getElementById("awayTeam");
+            const homeSelect = document.getElementById("homeTeam");
+            const awaySelect = document.getElementById("awayTeam");
 
-        homeSelect.innerHTML = "";
-        awaySelect.innerHTML = "";
+            homeSelect.innerHTML = "";
+            awaySelect.innerHTML = "";
 
-        data.teams.forEach(team => {
-            let option1 = new Option(team, team);
-            let option2 = new Option(team, team);
-            homeSelect.add(option1);
-            awaySelect.add(option2);
-        });
+            data.teams.forEach(team => {
+                let option1 = new Option(team, team);
+                let option2 = new Option(team, team);
+                homeSelect.add(option1);
+                awaySelect.add(option2);
+            });
+
+        } catch (error) {
+            document.getElementById("loading").innerText =
+                "Errore nel caricamento squadre. Riprova.";
+            console.error(error);
+        }
     }
 
     async function predict() {
@@ -106,52 +115,60 @@
         document.getElementById("loading").innerText = "Calcolo in corso...";
         document.getElementById("results").innerHTML = "";
 
-        const response = await fetch("https://football-quant-lab.onrender.com", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                home_team: home,
-                away_team: away
-            })
-        });
+        try {
 
-        const data = await response.json();
+            const response = await fetch(API_BASE + "/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    home_team: home,
+                    away_team: away
+                })
+            });
 
-        document.getElementById("loading").innerText = "";
+            const data = await response.json();
 
-        if (data.error) {
-            document.getElementById("results").innerHTML =
-                "<div class='card'>" + data.error + "</div>";
-            return;
+            document.getElementById("loading").innerText = "";
+
+            if (data.error) {
+                document.getElementById("results").innerHTML =
+                    "<div class='card'>" + data.error + "</div>";
+                return;
+            }
+
+            document.getElementById("results").innerHTML = `
+                <div class="card">
+                    <h2>Probabilità 1X2</h2>
+                    <p>Home Win: <span class="big-number">${data.home_win}%</span></p>
+                    <p>Draw: <span class="big-number">${data.draw}%</span></p>
+                    <p>Away Win: <span class="big-number">${data.away_win}%</span></p>
+                </div>
+
+                <div class="card">
+                    <h2>Over / Under 2.5</h2>
+                    <p>Over 2.5: <span class="big-number">${data.over_2_5}%</span></p>
+                    <p>Under 2.5: <span class="big-number">${data.under_2_5}%</span></p>
+                </div>
+
+                <div class="card">
+                    <h2>Expected Goals</h2>
+                    <p>λ Home: <span class="big-number">${data.lambda_home}</span></p>
+                    <p>λ Away: <span class="big-number">${data.lambda_away}</span></p>
+                </div>
+
+                <div class="card">
+                    <h2>Top 5 Risultati Esatti</h2>
+                    ${data.top_scores.map(s => 
+                        `<p>${s.score} → <span class="big-number">${s.probability}%</span></p>`
+                    ).join("")}
+                </div>
+            `;
+
+        } catch (error) {
+            document.getElementById("loading").innerText =
+                "Errore durante il calcolo.";
+            console.error(error);
         }
-
-        document.getElementById("results").innerHTML = `
-            <div class="card">
-                <h2>Probabilità 1X2</h2>
-                <p>Home Win: <span class="big-number">${data.home_win}%</span></p>
-                <p>Draw: <span class="big-number">${data.draw}%</span></p>
-                <p>Away Win: <span class="big-number">${data.away_win}%</span></p>
-            </div>
-
-            <div class="card">
-                <h2>Over / Under 2.5</h2>
-                <p>Over 2.5: <span class="big-number">${data.over_2_5}%</span></p>
-                <p>Under 2.5: <span class="big-number">${data.under_2_5}%</span></p>
-            </div>
-
-            <div class="card">
-                <h2>Expected Goals</h2>
-                <p>λ Home: <span class="big-number">${data.lambda_home}</span></p>
-                <p>λ Away: <span class="big-number">${data.lambda_away}</span></p>
-            </div>
-
-            <div class="card">
-                <h2>Top 5 Risultati Esatti</h2>
-                ${data.top_scores.map(s => 
-                    `<p>${s.score} → <span class="big-number">${s.probability}%</span></p>`
-                ).join("")}
-            </div>
-        `;
     }
 
     populateTeams();
